@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Winterherz</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: zärtlich und verspielt, ein Geschenk, das sich wie eine kleine Spielkonsole anfühlt
+   IDEA: eine weihnachtsrote Handheld-Konsole mit einer verschneiten Pixelwelt im Bildschirm
+   PICTURE: der Spielbildschirm selbst, darunter Steuerkreuz und A-Knopf
+   COLOUR and TYPE: Nachtblau außen, Konsolenrot, Kerzengold, Creme; Pixelify Sans
+   LAYOUT: eine zentrierte Konsole, bis 480px breit; HUD über, Steuerung unter dem Bildschirm */
+:root{color-scheme:dark;--nacht:#151a36;--rot:#b23642;--rot2:#8e2a35;--rot3:#cf4c57;--gold:#ffcf5a;--creme:#f4ead8;--tief:#1a1222;--ink:#f4efe6}
+:root[data-theme=light],:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{margin:0;height:100%}
+body{background:var(--nacht);background-image:radial-gradient(#ffffff18 1px,transparent 1.5px),radial-gradient(#ffffff0d 1px,transparent 1.5px);background-size:46px 46px,23px 23px;background-position:0 0,11px 17px;color:var(--ink);font:16px/1.45 "Pixelify Sans",system-ui,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+.buehne{min-height:100%;display:flex;flex-direction:column;align-items:center;padding:max(14px,env(safe-area-inset-top)) 12px max(18px,env(safe-area-inset-bottom))}
+.geraet{width:100%;max-width:480px;background:linear-gradient(170deg,var(--rot3),var(--rot) 30%,var(--rot2));border-radius:22px 22px 54px 22px;padding:14px 14px 22px;box-shadow:inset 0 2px 0 #ffffff40,inset 0 -4px 0 #00000030,0 14px 0 -4px #00000050,0 20px 40px #00000060}
+.kopf{display:flex;align-items:center;gap:10px;padding:0 4px 8px;color:var(--creme)}
+.marke{font-weight:700;font-size:20px;line-height:1}
+.marke small{display:block;font-size:12px;font-weight:400;opacity:.8;margin-top:2px}
+.sp{flex:1}
+.zaehler{display:flex;align-items:center;gap:6px;background:#00000030;padding:4px 10px 4px 6px;border-radius:99px;font-weight:600;white-space:nowrap}
+.zaehler i{width:14px;height:14px;background:var(--gold);clip-path:polygon(50% 0,62% 38%,100% 50%,62% 62%,50% 100%,38% 62%,0 50%,38% 38%)}
+.rahmen{background:var(--tief);border-radius:10px 10px 26px 10px;padding:10px 10px 8px;box-shadow:inset 0 3px 8px #000a}
+.info{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:#c9bfd8;padding:0 2px 6px}
+.info #tag{color:var(--gold);font-weight:600}
+.screen{position:relative;width:100%;aspect-ratio:160/144;background:#0c0f22;overflow:hidden;border-radius:3px}
+.screen canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;touch-action:none;-webkit-user-select:none;user-select:none}
+#ziel{position:absolute;left:0;right:0;top:0;padding:5px 8px;font-size:13px;line-height:1.3;background:linear-gradient(#0c0f22e0,#0c0f2200);color:#fff3d0;pointer-events:none;text-shadow:0 1px 0 #000}
+#ziel:empty{display:none}
+#dialog{position:absolute;left:6px;right:6px;bottom:6px;max-height:78%;overflow:auto;background:#fffaf0;color:#2a1e2e;border:3px solid #2a1e2e;box-shadow:inset 0 0 0 2px #e7d6b8,0 3px 0 #0006;border-radius:6px;padding:8px 10px 6px;display:grid;grid-template-columns:auto 1fr;column-gap:8px;cursor:pointer}
+#dbild{grid-row:1/4;width:40px;height:40px;image-rendering:pixelated;background:#e7d6b8;border-radius:4px;align-self:start}
+#dname{font-weight:700;font-size:14px;color:var(--rot);line-height:1.2}
+#dtext{font-size:16px;line-height:1.35;min-height:2.7em;grid-column:2}
+#dbild[hidden]+#dname,#dbild[hidden]~#dtext,#dbild[hidden]~#dwahl,#dbild[hidden]~#dweiter{grid-column:1/3}
+#dtext.erz{font-style:italic;color:#4a3a52}
+#dwahl{grid-column:2;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+#dwahl:empty{display:none}
+.wahlknopf{font:inherit;font-weight:600;font-size:15px;min-height:40px;padding:4px 12px;background:#f1e2c4;color:#2a1e2e;border:2px solid #2a1e2e;border-radius:6px;cursor:pointer}
+.wahlknopf.aktiv{background:var(--gold);box-shadow:0 0 0 2px #fff inset}
+#dweiter{grid-column:2;text-align:right;font-size:12px;color:var(--rot);height:14px;animation:hop 0.8s steps(2) infinite}
+@keyframes hop{50%{transform:translateY(2px)}}
+#overlay{position:absolute;inset:0;background:#0c0f22d8;display:grid;place-items:center;padding:12px;text-align:center;z-index:3}
+#overlay .karte{width:100%;max-width:300px;background:#211a3a;border:3px solid var(--gold);border-radius:8px;padding:14px 14px 12px;box-shadow:0 5px 0 #000a}
+#overlay h1{font-size:clamp(32px,10vw,44px);line-height:1;margin:4px 0 6px;color:var(--gold)}
+#overlay h2{font-size:24px;line-height:1.1;margin:4px 0;color:var(--gold)}
+#overlay p{margin:6px 0}
+#overlay .klein{font-size:13px;color:#c9bfd8}
+#overlay .untertitel{font-size:18px}
+#overlay .zahlgross{font-size:22px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px}
+#overlay img.gross{width:56px;height:56px;image-rendering:pixelated;margin:4px auto;display:block;animation:schweb 1.6s ease-in-out infinite}
+#overlay img.mini{width:22px;height:22px;image-rendering:pixelated}
+#overlay .test{font-size:12px;border:1px dashed #7fe0d0;color:#bfeeea;padding:4px 6px;border-radius:4px}
+@keyframes schweb{50%{transform:translateY(-4px)}}
+.okn{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.knopf{font:inherit;font-weight:600;font-size:16px;min-height:46px;padding:6px 14px;border-radius:8px;border:2px solid #0c0f22;background:#3a3168;color:var(--ink);cursor:pointer;box-shadow:inset 0 -3px 0 #0005}
+.knopf.primaer{background:var(--gold);color:#2a1e2e}
+.knopf:focus-visible,.wahlknopf:focus-visible,#btnA:focus-visible,#menuKnopf:focus-visible{outline:3px solid #fff;outline-offset:2px}
+.steuer{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:8px;padding:20px 6px 0}
+#dpad{position:relative;width:148px;height:148px;touch-action:none;-webkit-user-select:none;user-select:none;cursor:pointer}
+#dpad .arm{position:absolute;background:#2a1e2e;box-shadow:inset 0 -4px 0 #0008,inset 0 2px 0 #ffffff18}
+#dpad .h{left:4px;right:4px;top:50px;height:48px;border-radius:8px}
+#dpad .v{top:4px;bottom:4px;left:50px;width:48px;border-radius:8px}
+#dpad .pf{position:absolute;width:0;height:0;border:8px solid transparent;opacity:.55}
+#dpad .pu{left:66px;top:12px;border-bottom-color:#c9bfd8;border-top:0}
+#dpad .pd{left:66px;bottom:12px;border-top-color:#c9bfd8;border-bottom:0}
+#dpad .pl{top:66px;left:12px;border-right-color:#c9bfd8;border-left:0}
+#dpad .pr{top:66px;right:12px;border-left-color:#c9bfd8;border-right:0}
+#dpad[data-dir="1"] .pu,#dpad[data-dir="0"] .pd,#dpad[data-dir="2"] .pl,#dpad[data-dir="3"] .pr{opacity:1;border-bottom-color:var(--gold)}
+#dpad[data-dir="0"] .pd{border-top-color:var(--gold)}#dpad[data-dir="2"] .pl{border-right-color:var(--gold)}#dpad[data-dir="3"] .pr{border-left-color:var(--gold)}
+.mitte{display:flex;flex-direction:column;align-items:center;gap:8px}
+#menuKnopf{font:inherit;font-size:13px;min-height:44px;padding:0 16px;border-radius:99px;border:0;background:#00000035;color:var(--creme);cursor:pointer;transform:rotate(-12deg)}
+#btnA{width:86px;height:86px;border-radius:50%;border:0;background:radial-gradient(circle at 35% 30%,#ffe08a,var(--gold) 45%,#d9a530);color:#5a3a10;font:inherit;font-weight:700;font-size:30px;box-shadow:inset 0 -6px 0 #0003,0 5px 0 #00000055;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;margin-right:6px}
+#btnA:active{transform:translateY(3px);box-shadow:inset 0 -3px 0 #0003,0 2px 0 #00000055}
+.lautsprecher{display:flex;gap:6px;justify-content:flex-end;padding:14px 14px 0}
+.lautsprecher i{width:5px;height:30px;border-radius:3px;background:#00000035;transform:rotate(-28deg)}
+.hilfe{max-width:480px;color:#aab1d8;font-size:13px;text-align:center;margin:14px 0 0}
+@media(max-width:380px){#dpad{width:128px;height:128px}#dpad .h{top:43px;height:42px}#dpad .v{left:43px;width:42px}#dpad .pu,#dpad .pd{left:56px}#dpad .pl,#dpad .pr{top:56px}#btnA{width:74px;height:74px}}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){#dweiter,#overlay img.gross{animation:none}}
+</style>
+</head>
+<body>
+<div class="buehne">
+  <div class="geraet">
+    <div class="kopf">
+      <div class="marke">Winterherz<small>Ein Adventsabenteuer</small></div>
+      <span class="sp"></span>
+      <div class="zaehler" title="Gefundene Sternsplitter"><i></i><span id="zahl">0 / 24</span></div>
+    </div>
+    <div class="rahmen">
+      <div class="info"><span id="tag"></span><span id="ort"></span></div>
+      <div class="screen">
+        <canvas id="screen" width="160" height="144" aria-label="Spielwelt"></canvas>
+        <div id="ziel" aria-live="polite"></div>
+        <div id="dialog" hidden aria-live="polite">
+          <canvas id="dbild" width="32" height="32" hidden></canvas>
+          <div id="dname"></div>
+          <div id="dtext"></div>
+          <div id="dwahl"></div>
+          <div id="dweiter">▼</div>
+        </div>
+        <div id="overlay" hidden></div>
+      </div>
+    </div>
+    <div class="steuer">
+      <div id="dpad" data-dir="-1" aria-label="Steuerkreuz">
+        <div class="arm h"></div><div class="arm v"></div>
+        <i class="pf pu"></i><i class="pf pd"></i><i class="pf pl"></i><i class="pf pr"></i>
+      </div>
+      <div class="mitte"><button id="menuKnopf">Menü</button></div>
+      <button id="btnA" aria-label="A: Reden und Untersuchen">A</button>
+    </div>
+    <div class="lautsprecher"><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+  <p class="hilfe">Am Computer: Pfeiltasten zum Laufen, Leertaste zum Reden, Esc fürs Menü.</p>
+</div>
+<script src="js/grafik.js"></script>
+<script src="js/welt.js"></script>
+<script src="js/minispiele.js"></script>
+<script src="js/engine.js"></script>
+</body>
+</html>
