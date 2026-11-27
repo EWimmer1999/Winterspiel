@@ -10,7 +10,13 @@ WH.KONFIG={
   du:"Jan",
   ich:"Elli",
   jahr:2026,
-  testmodus:true        // true = jeder Tag sofort spielbar. Vor dem Verschenken auf false setzen!
+  testmodus:true,       // true = jeder Tag sofort spielbar. Vor dem Verschenken auf false setzen!
+  // Der Brief, den Elli an Heiligabend überreicht. Jeder Eintrag ist ein Absatz.
+  schlussbrief:[
+    "24 Tage, 24 Splitter, und trotzdem nur ein winziger Teil von allem, was ich an dir mag.",
+    "Danke für jedes Lachen, jede Umarmung und jeden ganz normalen Dienstag mit dir.",
+    "Ich freu mich auf alles, was noch kommt. Mit dir."
+  ]
 };
 WH.NAMEN={jan:WH.KONFIG.du,elli:WH.KONFIG.ich,bruno:"Bruno",hilde:"Hilde",paula:"Paula",otto:"Bürgermeister Otto",mimi:"Mimi"};
 WH.START={karte:"haus",x:2,y:4,dir:0};
@@ -148,7 +154,7 @@ WH.FIGUREN=[
     if(g.kapitel===0&&g.fertig(1))return plaudern(g,"elli",["Bis morgen, {du}! Schlaf gut.","Morgen finden wir den nächsten Splitter. Ich hab's im Gefühl.","Hast du den Baum gesehen? Ohne Stern sieht er so traurig aus.","Ich mag es, wie der Schnee unter deinen Stiefeln knirscht."]);
     return plaudern(g,"elli",["Hey {du}! Ist irgendwie still im Dorf, oder?","Ich hab das Gefühl, dieser Dezember wird besonders."]);
   }},
-  {id:"elli_k1a",karte:"dorf",typ:"npc",sprite:"elli",x:6,y:9,dir:1,wann:ELLI_ORTE[0],aktion:async g=>{
+  {id:"elli_k1a",karte:"dorf",typ:"npc",sprite:"elli",istElli:true,x:6,y:9,dir:1,wann:ELLI_ORTE[0],aktion:async g=>{
     await g.sag("elli","{du}! Da bist du ja! Hast du das gesehen?");
     await g.sag("jan","Den Blitz? Klar. Was war das?");
     await g.sag("elli","Der Weihnachtsstern über dem Dorf ist zersprungen! Einfach so. Puff.");
@@ -159,7 +165,7 @@ WH.FIGUREN=[
     await g.sag("elli","Einer ist direkt beim großen Baum auf dem Dorfplatz gelandet. Komm mit!");
     g.setze("d1_elli");g.ziel("Such den Splitter beim großen Baum auf dem Dorfplatz.");
   }},
-  {id:"elli_k1b",karte:"dorf",typ:"npc",sprite:"elli",x:13,y:12,dir:0,wann:ELLI_ORTE[1],aktion:async g=>{
+  {id:"elli_k1b",karte:"dorf",typ:"npc",sprite:"elli",istElli:true,x:13,y:12,dir:0,wann:ELLI_ORTE[1],aktion:async g=>{
     if(!g.f("d1_splitter"))return g.sag("elli","Er muss hier irgendwo sein. Da drüben glitzert doch was!");
     await g.sag("elli","Du hast ihn! Der Erste!");
     await g.sag("elli","Wenn wir alle 24 haben, setzen wir den Stern an Heiligabend wieder zusammen. Dann leuchtet der Baum wie jedes Jahr.");
@@ -168,7 +174,7 @@ WH.FIGUREN=[
     await g.sag("elli","Es ist schon spät. Morgen suchen wir weiter. Gute Nacht, {du}!");
     await g.kapitelEnde();
   }},
-  {id:"elli_k2",karte:"dorf",typ:"npc",sprite:"elli",x:7,y:17,dir:2,wann:ELLI_ORTE[2],aktion:async g=>{
+  {id:"elli_k2",karte:"dorf",typ:"npc",sprite:"elli",istElli:true,x:7,y:17,dir:2,wann:ELLI_ORTE[2],aktion:async g=>{
     if(g.f("d2_zimt")){
       await g.sag("jan","Für dich. Frisch aus dem Ofen.");
       await g.sag("elli","Ein Zimtstern? Für mich?");
@@ -180,7 +186,7 @@ WH.FIGUREN=[
     if(!g.f("d2_bruno"))return g.sag("elli","Morgen, {du}! Bruno ist völlig durch den Wind. Geh mal rein und frag ihn, was los ist.");
     return g.sag("elli","Sternausstecher? Die Kinder spielen immer überall im Dorf. Schau mal hinter Bäumen und in den Ecken!");
   }},
-  {id:"elli_k3",karte:"dorf",typ:"npc",sprite:"elli",x:17,y:21,dir:1,wann:ELLI_ORTE[3],aktion:async g=>{
+  {id:"elli_k3",karte:"dorf",typ:"npc",sprite:"elli",istElli:true,x:17,y:21,dir:1,wann:ELLI_ORTE[3],aktion:async g=>{
     if(g.f("d3_splitter")){
       await g.sag("elli","Drei Splitter in drei Tagen! Wir sind echt ein gutes Team.");
       await g.sag("jan","Das beste.");
@@ -194,7 +200,7 @@ WH.FIGUREN=[
     await g.sag("elli","Hast du Hildes Kartenstand gesehen? Sie sucht jemanden mit gutem Gedächtnis.");
     g.ziel("Sprich mit Hilde am roten Marktstand.");
   }},
-  {id:"elli_k4",karte:"dorf",typ:"npc",sprite:"elli",x:8,y:21,dir:2,wann:ELLI_ORTE[4],aktion:async g=>{
+  {id:"elli_k4",karte:"dorf",typ:"npc",sprite:"elli",istElli:true,x:8,y:21,dir:2,wann:ELLI_ORTE[4],aktion:async g=>{
     await g.sag("elli","Da bist du ja. Setz dich kurz zu mir.");
     await g.sag("elli","Du hast Mimi gefunden? Du bist offiziell der Held von Lichtenau.");
     await g.sag("elli","Bevor wir morgen weitersuchen: ein kleines Quiz. Über uns. Es gibt keine falschen Antworten. Fast.");
@@ -205,7 +211,7 @@ WH.FIGUREN=[
     await g.sag("elli","Bis morgen, {du}.");
     await g.kapitelEnde();
   }},
-  {id:"elli_k6",karte:"dorf",typ:"npc",sprite:"elli",x:13,y:12,dir:0,wann:ELLI_ORTE[5],aktion:async g=>{
+  {id:"elli_k6",karte:"dorf",typ:"npc",sprite:"elli",istElli:true,x:13,y:12,dir:0,wann:ELLI_ORTE[5],aktion:async g=>{
     if(!g.f("d6_sieg"))return g.sag("elli","Ich drück dir die Daumen! Bau einen mit Bart, dann sieht er aus wie du.");
     await g.sag("elli","Gewonnen! Ich wusste es.");
     await g.sag("elli","Sechs Splitter. Und der Weg in den Wald ist frei…");

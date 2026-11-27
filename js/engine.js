@@ -90,7 +90,7 @@ function zeigeSprecher(wer){
   const name=wer?(WH.NAMEN[wer]||wer):'';
   dname.textContent=name;dname.hidden=!name;
   dbx.clearRect(0,0,32,32);
-  if(wer&&WH.LOOKS[wer]||wer==='mimi'){dbild.hidden=false;dbx.drawImage(WH.sprite(wer,0,0),0,0,16,16,0,0,32,32);}else dbild.hidden=true;
+  if(wer&&WH.hatSprite(wer)){dbild.hidden=false;dbx.drawImage(WH.sprite(wer,0,0),0,0,16,16,0,0,32,32);}else dbild.hidden=true;
   dtext.classList.toggle('erz',!wer);
 }
 function tippe(s,fertig){
@@ -159,18 +159,20 @@ const g={
   },
   kapitelEnde:async()=>{
     const n=SAVE.kap+1;SAVE.kap=n;speichern();hud();
+    if(n>=24){ziel('Frohe Weihnachten! Das Abenteuer ist vollendet.');await overlay(`<p class="klein">24. Dezember</p><h2>Frohe Weihnachten</h2><p class="zahlgross"><img class="mini" src="${SPLITTER_URL}" alt=""> 24 / 24</p><p>Alle Splitter gefunden. Der Stern leuchtet wieder.</p><p class="klein">Du kannst weiter durch Lichtenau spazieren und allen frohe Weihnachten wünschen.</p>`,[["Weiter",'x',true]]);return;}
     const naechst=n+1,gibt=naechst<=WH.KAPITEL.length,offen=gibt&&verfuegbar(naechst);
     ziel(gibt?(offen?`Tag ${naechst} wartet schon auf dich.`:`Für heute ist alles geschafft. Tag ${naechst} beginnt am ${naechst}. Dezember.`):'Fortsetzung folgt …');
     const k=[["Weiter erkunden",'x',!offen]];if(offen)k.unshift([WH.KONFIG.testmodus?`Tag ${naechst} starten (Testmodus)`:`Weiter mit Tag ${naechst}`,'w',true]);
     const w=await overlay(`<p class="klein">Tag ${n}</p><h2>${WH.KAPITEL[n-1].titel}</h2><p>geschafft!</p><p class="zahlgross"><img class="mini" src="${SPLITTER_URL}" alt=""> ${SAVE.splitter} / 24</p><p>${gibt?(offen?'Das nächste Kapitel ist schon offen.':'Morgen geht die Geschichte weiter.'):'Die Geschichte geht bald weiter.'}</p>`,k);
     if(w==='w')setTimeout(pruefeKapitel,50);
   },
-  minispiel:(name,stufe)=>new Promise(res=>{S.mini=WH.MINI[name](stufe||0,res);S.mini.name=name;$('ziel').textContent=S.mini.aufgabe||'';}),
+  minispiel:(name,stufe,opt)=>new Promise(res=>{S.mini=WH.MINI[name](stufe||0,res,opt||{});S.mini.name=name;$('ziel').textContent=S.mini.aufgabe||'';}),
   dreh:(id,d)=>{if(id==='jan'){P.dir=d;return;}const r=RT[id];if(r)r.dir=d;},
   zuMir:id=>{const r=RT[id];if(!r)return;const dx=P.x-r.x,dy=P.y-r.y;r.dir=Math.abs(dx)>Math.abs(dy)?(dx<0?2:3):(dy<0?1:0);},
   bewege:async(id,pfad)=>{for(const ch of pfad){const d={D:0,U:1,L:2,R:3}[ch];if(d===undefined)continue;let tries=0;while(!starteSchritt(id,d)&&tries++<20)await g.warten(100);await warteStill(id);}},
   position:(id,x,y,d)=>{const r=id==='jan'?P:RT[id];if(!r)return;r.x=r.tx=x;r.y=r.ty=y;r.px=x*T;r.py=y*T;r.moving=false;if(d!==undefined)r.dir=d;},
   reise:async(karte,x,y,d)=>{await blende(1);ladeKarte(karte,x,y,d===undefined?P.dir:d);speichern();await blende(0);},
+  zeige:(html,knopf)=>overlay(html,[[knopf||'Weiter',1,true]]),
   titelkarte:async(n)=>{const k=WH.KAPITEL[n-1];await overlay(`<p class="klein">${n}. Dezember</p><h2>Tag ${n}</h2><p class="untertitel">${k.titel}</p>`,[["Los geht's",1,true]]);},
   speichern
 };
@@ -197,7 +199,7 @@ function starteSchritt(id,d){
 }
 function bewegeObjekt(o,dt){
   if(!o.moving)return false;
-  o.t+=dt/SCHRITT;
+  o.t+=dt/(o.rutscht?SCHRITT*0.55:SCHRITT);
   if(o.t>=1){o.moving=false;o.x=o.tx;o.y=o.ty;o.px=o.x*T;o.py=o.y*T;return true;}
   o.px=(o.x+(o.tx-o.x)*o.t)*T;o.py=(o.y+(o.ty-o.y)*o.t)*T;return false;
 }
@@ -206,6 +208,7 @@ function spielerUpdate(dt){
   if(bewegeObjekt(P,dt))angekommen();
   if(P.moving||S.busy||dlg.offen||S.mini)return;
   const d=richtung();
+  if(KARTE.boden[P.y][P.x]==='i'&&d>=0&&d!==P.dir){P.dir=d;P.dreh=0;}
   if(d<0){P.dreh=0;P.lief=false;return;}
   if(d!==P.dir&&!P.lief){P.dir=d;P.dreh=0.09;return;}
   if(P.dreh>0){P.dreh-=dt;return;}
@@ -213,9 +216,15 @@ function spielerUpdate(dt){
   const nx=P.x+DX[d],ny=P.y+DY[d];
   const tuer=d===1&&tuerVor(nx,ny);
   if(tuer){if(tuer.tuer.ziel)skript(async g=>{await g.reise(tuer.tuer.ziel,tuer.tuer.zx,tuer.tuer.zy,1);});else if(tuer.tuer.aktion)skript(tuer.tuer.aktion);return;}
+  const st=figurAuf(nx,ny);
+  if(st&&st.typ==='stein'){const r=RT[st.id],bx=nx+DX[d],by=ny+DY[d];
+    if(frei(bx,by,st.id)&&KARTE.boden[by][bx]!=='i'){starteSchritt(st.id,d);P.tx=nx;P.ty=ny;P.moving=true;P.t=0;P.schritt=(P.schritt+1)%2;P.lief=true;}
+    else P.lief=false;return;}
   P.lief=starteSchritt('jan',d);
 }
 function angekommen(){
+  if(KARTE.boden[P.y][P.x]==='i'){const nx=P.x+DX[P.dir],ny=P.y+DY[P.dir];if(frei(nx,ny,'jan')){P.rutscht=true;starteSchritt('jan',P.dir);return;}}
+  P.rutscht=false;
   const w=(KARTE.warps||[]).find(w=>w.x===P.x&&w.y===P.y&&(!w.wann||w.wann(g)));
   if(w){if(w.aktion){skript(w.aktion);}else skript(async g=>{await g.reise(w.ziel,w.zx,w.zy,w.dir);});return;}
   const a=(WH.AUSLOESER||[]).find(a=>a.karte===S.karte&&P.x>=a.x&&P.x<a.x+(a.w||1)&&P.y>=a.y&&P.y<a.y+(a.h||1)&&(!a.wann||a.wann(g)));
@@ -244,7 +253,7 @@ function npcUpdate(dt){
 /* ---------- Zeichnen ---------- */
 const FLOCKEN=Array.from({length:60},()=>({x:Math.random()*SW,y:Math.random()*SH,v:8+Math.random()*12,d:Math.random()*6}));
 const hash=(x,y)=>((x*73856093)^(y*19349663))>>>0;
-function laufBild(o){if(!o.moving)return 0;return o.t<0.5?(o.schritt?1:2):0;}
+function laufBild(o){if(!o.moving||o.rutscht)return 0;return o.t<0.5?(o.schritt?1:2):0;}
 function zeichneWelt(dt){
   const mw=KARTE.w*T,mh=KARTE.h*T;
   let cx=mw<=SW?-(SW-mw)/2:Math.max(0,Math.min(mw-SW,P.px+8-SW/2));
@@ -263,7 +272,9 @@ function zeichneWelt(dt){
     if(e.typ==='deko'){ctx.drawImage(e.bild(),r.px-cx,r.py-cy);return;}
     liste.push({y:r.py+T,d:()=>{
       const sx=Math.round(r.px-cx),sy=Math.round(r.py-cy);
-      if(e.typ==='npc'){ctx.fillStyle='#00000030';ctx.fillRect(sx+4,sy+14,8,2);ctx.drawImage(WH.sprite(e.sprite,r.dir,e.sprite==='mimi'?(Math.floor(S.zeit*2)%2):laufBild(r)),sx,sy-2);}
+      if(e.typ==='npc'){ctx.fillStyle='#00000030';ctx.fillRect(sx+4,sy+14,8,2);const tier=e.sprite==='mimi'||e.sprite==='fuchs'?(Math.floor(S.zeit*2)%2):e.sprite==='eule'?(Math.floor(S.zeit*2)%7===0?2:0):laufBild(r);ctx.drawImage(WH.sprite(e.sprite,r.dir,tier),sx,sy-2);}
+      else if(e.typ==='stein'){ctx.drawImage(WH.felsBild,sx,sy);}
+      else if(e.typ==='unsichtbar'){}
       else if(e.typ==='ding'){const b=Math.round(Math.sin(S.zeit*3+r.x)*1.5);ctx.fillStyle='#00000025';ctx.fillRect(sx+5,sy+12,6,2);ctx.drawImage(WH.ding(e.ding||'splitter'),sx+3,sy+2+b);if(Math.floor(S.zeit*4+r.y)%3===0){ctx.fillStyle='#ffffff';ctx.fillRect(sx+2,sy+2+b,1,1);ctx.fillRect(sx+13,sy+6+b,1,1);ctx.fillRect(sx+8,sy+b,1,1);}}
       else if(e.typ==='schild'){ctx.drawImage(WH.schildBild,sx,sy);}
       else if(e.typ==='objekt'){const img=e.bild(g);ctx.drawImage(img,sx+(16-img.width)/2|0,sy+16-img.height);}
@@ -272,11 +283,30 @@ function zeichneWelt(dt){
   liste.push({y:P.py+T+0.5,d:()=>{const sx=Math.round(P.px-cx),sy=Math.round(P.py-cy);ctx.fillStyle='#00000030';ctx.fillRect(sx+4,sy+14,8,2);ctx.drawImage(WH.sprite('jan',P.dir,laufBild(P)),sx,sy-2);}});
   liste.sort((a,b)=>a.y-b.y).forEach(o=>o.d());
   if(KARTE.draussen){FLOCKEN.forEach(f=>{if(!RUHIG){f.y+=f.v*dt;f.x+=Math.sin(S.zeit+f.d)*0.15;if(f.y>SH){f.y=-2;f.x=Math.random()*SW;}if(f.x<0)f.x+=SW;if(f.x>SW)f.x-=SW;}ctx.fillStyle='#ffffff';ctx.fillRect(f.x|0,f.y|0,1,1);});
-    if(KARTE.abend){ctx.fillStyle='#1b1f5a30';ctx.fillRect(0,0,SW,SH);}}
+  }
+  const abend=typeof KARTE.abend==='function'?KARTE.abend(g):KARTE.abend;
+  if(abend){ctx.fillStyle='#6870c4';ctx.globalCompositeOperation='multiply';ctx.fillRect(0,0,SW,SH);ctx.globalCompositeOperation='lighter';
+    const glow=(x,y,r,f)=>{const gr=ctx.createRadialGradient(x,y,0,x,y,r);gr.addColorStop(0,f);gr.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,r,0,7);ctx.fill();};
+    for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++){if(KARTE.boden[j][i]==='l')glow(i*T-cx+8,j*T-cy+4,22,'rgba(255,200,110,0.45)');}
+    (KARTE.gebaeude||[]).forEach(b=>glow((b.x+b.tuer.dx)*T-cx+8,(b.y+b.h)*T-cy-6,18,'rgba(255,190,90,0.3)'));
+    if(g.f('baum_hell')&&S.karte==='dorf')glow(16*T-cx,11*T-cy,64,'rgba(255,220,140,0.75)');
+    ctx.globalCompositeOperation='source-over';}
+  if(KARTE.dunkel){dunkel(cx,cy,x0,y0,x1,y1);}
+}
+const[dk,dkx]=(()=>{const c=document.createElement('canvas');c.width=SW;c.height=SH;return[c,c.getContext('2d')];})();
+function loch(x,y,r){const gr=dkx.createRadialGradient(x,y,r*0.35,x,y,r);gr.addColorStop(0,'rgba(0,0,0,1)');gr.addColorStop(1,'rgba(0,0,0,0)');dkx.fillStyle=gr;dkx.beginPath();dkx.arc(x,y,r,0,7);dkx.fill();}
+function dunkel(cx,cy,x0,y0,x1,y1){
+  dkx.globalCompositeOperation='source-over';dkx.fillStyle='#05040c';dkx.fillRect(0,0,SW,SH);
+  dkx.globalCompositeOperation='destination-out';
+  loch(P.px+8-cx,P.py+8-cy,40+Math.sin(S.zeit*3)*1.5);
+  for(let j=y0;j<=y1;j++)for(let i=x0;i<=x1;i++)if(KARTE.boden[j][i]==='C')loch(i*T-cx+8,j*T-cy+8,14);
+  sichtbar().forEach(e=>{if(e.typ==='ding'){const r=RT[e.id];loch(r.px-cx+8,r.py-cy+8,10);}});
+  if(KARTE.licht)KARTE.licht.forEach(([i,j,r])=>loch(i*T-cx+8,j*T-cy+8,r));
+  ctx.drawImage(dk,0,0);
 }
 function frame(dt){
   S.zeit+=dt;
-  if(S.mini){S.mini.update(dt);S.mini.draw(ctx);if(S.mini.status)$('ziel').textContent=S.mini.status();
+  if(S.mini){S.mini.update(dt,richtung());S.mini.draw(ctx);if(S.mini.status)$('ziel').textContent=S.mini.status();
     if(S.mini.ende){const m=S.mini;S.mini=null;$('ziel').textContent=SAVE.ziel?ersetze(SAVE.ziel):'';m.ende();}}
   else if(KARTE){spielerUpdate(dt);npcUpdate(dt);zeichneWelt(dt);}
   if(S.blitz>0){ctx.fillStyle=`rgba(255,250,220,${Math.min(1,S.blitz)})`;ctx.fillRect(0,0,SW,SH);S.blitz-=dt*1.2;}
@@ -287,12 +317,32 @@ function loop(ts){const dt=Math.min(0.05,(ts-last)/1000||0);last=ts;frame(dt);re
 
 /* ---------- Menü ---------- */
 async function menue(){
-  if(!$('overlay').hidden||S.titel)return;
-  const w=await overlay(`<h2>Menü</h2><p class="klein">Steuerung: Steuerkreuz oder Pfeiltasten zum Laufen, A oder Leertaste zum Reden und Untersuchen.</p><p class="klein">Das Spiel speichert automatisch.</p>`,[["Weiterspielen",'z',true],["Spielstand löschen",'l']]);
+  if(!$('overlay').hidden||S.titel||S.busy||dlg.offen||S.mini)return;
+  const kn=[["Weiterspielen",'z',true]];if(WH.KONFIG.testmodus)kn.push(["Tag wählen (Testmodus)",'t']);kn.push(["Spielstand löschen",'l']);
+  const w=await overlay(`<h2>Menü</h2><p class="klein">Steuerung: Steuerkreuz oder Pfeiltasten zum Laufen, A oder Leertaste zum Reden und Untersuchen.</p><p class="klein">Das Spiel speichert automatisch.</p>`,kn);
+  if(w==='t'){await tagWaehlen();return;}
   if(w==='l'){const s=await overlay(`<h2>Wirklich löschen?</h2><p>Alle Splitter und der ganze Fortschritt gehen verloren.</p>`,[["Nein, zurück",'n',true],["Ja, löschen",'j']]);
     if(s==='j'){try{localStorage.removeItem(KEY);}catch(e){}SAVE=NEU();ladeKarte(SAVE.karte,SAVE.x,SAVE.y,SAVE.dir);ziel('');hud();S.titel=true;titel();}}
 }
 $('menuKnopf').addEventListener('click',menue);
+
+/* ---------- Testmodus: direkt zu einem Tag springen ---------- */
+function tagWaehlen(){
+  return new Promise(res=>{
+    const o=$('overlay');
+    o.innerHTML=`<div class="karte"><h2>Tag wählen</h2><p class="klein">Startet den Tag von vorn, als wären alle Tage davor geschafft.</p><div class="tage">${WH.KAPITEL.map((k,i)=>`<button class="knopf tagk" data-n="${i+1}" title="${k.titel}">${i+1}</button>`).join('')}</div><div class="okn"><button class="knopf primaer">Abbrechen</button></div></div>`;
+    o.hidden=false;
+    o.querySelector('.primaer').addEventListener('click',()=>{o.hidden=true;o.innerHTML='';res();});
+    o.querySelectorAll('.tagk').forEach(b=>b.addEventListener('click',()=>{o.hidden=true;o.innerHTML='';springeZuTag(+b.dataset.n);res();}));
+  });
+}
+function springeZuTag(n){
+  const s=NEU();s.kap=n-1;s.splitter=n-1;s.gestartet=true;
+  for(let d=1;d<n;d++){s.flags['start'+d]=true;(WH.WELTFLAGS&&WH.WELTFLAGS[d]||[]).forEach(f=>s.flags[f]=true);}
+  const st=(WH.TESTSTART&&WH.TESTSTART[n])||[WH.START.karte,WH.START.x,WH.START.y,WH.START.dir];
+  SAVE=s;S.busy=false;ladeKarte(st[0],st[1],st[2],st[3]);ziel('');hud();speichern();
+  setTimeout(pruefeKapitel,50);
+}
 
 /* ---------- Start ---------- */
 async function titel(){
